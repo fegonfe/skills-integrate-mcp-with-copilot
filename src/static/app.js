@@ -3,6 +3,68 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const studentSearchForm = document.getElementById("student-search-form");
+  const studentQuery = document.getElementById("student-query");
+  const studentSearchStatus = document.getElementById("student-search-status");
+  const studentSearchResults = document.getElementById("student-search-results");
+
+  function renderStudentResults(payload) {
+    studentSearchResults.replaceChildren();
+
+    if (payload.results.length === 0) {
+      studentSearchStatus.textContent = `No students found for “${payload.query}”.`;
+      studentSearchStatus.className = "search-status empty-state";
+      return;
+    }
+
+    studentSearchStatus.textContent = payload.has_more
+      ? `Showing 10 of ${payload.total_matches} matches. Refine your search to see others.`
+      : `${payload.total_matches} ${payload.total_matches === 1 ? "student" : "students"} found.`;
+    studentSearchStatus.className = "search-status";
+
+    payload.results.forEach((student) => {
+      const result = document.createElement("article");
+      result.className = "student-result";
+
+      const name = document.createElement("h4");
+      name.textContent = student.name;
+
+      const details = document.createElement("p");
+      details.textContent = `${student.student_id} · ${student.email}`;
+
+      result.append(name, details);
+      studentSearchResults.appendChild(result);
+    });
+  }
+
+  studentSearchForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const query = studentQuery.value.trim();
+
+    if (!query) {
+      studentSearchStatus.textContent = "Enter a student ID or name to search.";
+      studentSearchStatus.className = "search-status empty-state";
+      studentSearchResults.replaceChildren();
+      return;
+    }
+
+    studentSearchStatus.textContent = "Searching…";
+    studentSearchStatus.className = "search-status";
+
+    try {
+      const response = await fetch(`/students/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) {
+        throw new Error("Student search request failed");
+      }
+
+      renderStudentResults(await response.json());
+    } catch (error) {
+      studentSearchStatus.textContent = "Student search is unavailable. Please try again.";
+      studentSearchStatus.className = "search-status error";
+      studentSearchResults.replaceChildren();
+      console.error("Error searching students:", error);
+    }
+  });
 
   // Function to fetch activities from API
   async function fetchActivities() {
