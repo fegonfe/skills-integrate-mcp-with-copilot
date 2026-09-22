@@ -13,6 +13,27 @@
     </header>
 
     <main>
+      <section id="student-search-container">
+        <h3>Find a Student</h3>
+        <form id="student-search-form" role="search">
+          <div class="form-group">
+            <label for="student-query">Student ID or Name:</label>
+            <div class="search-controls">
+              <input
+                type="search"
+                id="student-query"
+                placeholder="Enter an ID or name"
+                autocomplete="off"
+                required
+              />
+              <button type="submit">Search</button>
+            </div>
+          </div>
+        </form>
+        <div id="student-search-status" class="search-status" aria-live="polite"></div>
+        <div id="student-search-results" class="student-results"></div>
+      </section>
+
       <section id="activities-container">
         <h3>Available Activities</h3>
         <div id="activities-list">

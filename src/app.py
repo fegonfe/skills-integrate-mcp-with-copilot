@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
+import unicodedata
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -77,6 +78,84 @@ activities = {
     }
 }
 
+# Searchable student directory. Enrollment records continue to use email until
+# the dedicated student profile work in issue #9 is implemented.
+students = [
+    {"student_id": "MH1001", "name": "Amelia Nguyen", "email": "amelia@mergington.edu"},
+    {"student_id": "MH1002", "name": "Áva García", "email": "ava@mergington.edu"},
+    {"student_id": "MH1003", "name": "Benjamin Carter", "email": "benjamin@mergington.edu"},
+    {"student_id": "MH1004", "name": "Charlotte Wilson", "email": "charlotte@mergington.edu"},
+    {"student_id": "MH1005", "name": "Daniel Kim", "email": "daniel@mergington.edu"},
+    {"student_id": "MH1006", "name": "Ella Thompson", "email": "ella@mergington.edu"},
+    {"student_id": "MH1007", "name": "Emma Davis", "email": "emma@mergington.edu"},
+    {"student_id": "MH1008", "name": "Harper Brown", "email": "harper@mergington.edu"},
+    {"student_id": "MH1009", "name": "Henry Martinez", "email": "henry@mergington.edu"},
+    {"student_id": "MH1010", "name": "James Anderson", "email": "james@mergington.edu"},
+    {"student_id": "MH1011", "name": "John Taylor", "email": "john@mergington.edu"},
+    {"student_id": "MH1012", "name": "Liam Thomas", "email": "liam@mergington.edu"},
+    {"student_id": "MH1013", "name": "Mia Moore", "email": "mia@mergington.edu"},
+    {"student_id": "MH1014", "name": "Michael Jackson", "email": "michael@mergington.edu"},
+    {"student_id": "MH1015", "name": "Noah White", "email": "noah@mergington.edu"},
+    {"student_id": "MH1016", "name": "Olivia Harris", "email": "olivia@mergington.edu"},
+    {"student_id": "MH1017", "name": "Scarlett Martin", "email": "scarlett@mergington.edu"},
+    {"student_id": "MH1018", "name": "Sophia Lee", "email": "sophia@mergington.edu"},
+]
+
+MAX_SEARCH_RESULTS = 10
+
+
+def normalize_name(value: str) -> str:
+    """Normalize names for case- and accent-insensitive comparison."""
+    decomposed = unicodedata.normalize("NFKD", value)
+    without_marks = "".join(
+        character for character in decomposed
+        if not unicodedata.combining(character)
+    )
+    return without_marks.replace("đ", "d").replace("Đ", "D").casefold()
+
+
+def find_students(query: str) -> dict:
+    """Find students by partial ID or partial normalized name."""
+    cleaned_query = query.strip()
+    if not cleaned_query:
+        return {
+            "query": "",
+            "search_type": None,
+            "results": [],
+            "total_matches": 0,
+            "has_more": False,
+        }
+
+    is_id_search = any(character.isdigit() for character in cleaned_query)
+    if is_id_search:
+        normalized_query = cleaned_query.upper()
+        matches = [
+            student for student in students
+            if normalized_query in student["student_id"].upper()
+        ]
+        matches.sort(key=lambda student: (
+            student["student_id"].upper() != normalized_query,
+            student["student_id"],
+        ))
+        search_type = "student_id"
+    else:
+        normalized_query = normalize_name(cleaned_query)
+        matches = [
+            student for student in students
+            if normalized_query in normalize_name(student["name"])
+        ]
+        matches.sort(key=lambda student: normalize_name(student["name"]))
+        search_type = "name"
+
+    total_matches = len(matches)
+    return {
+        "query": cleaned_query,
+        "search_type": search_type,
+        "results": matches[:MAX_SEARCH_RESULTS],
+        "total_matches": total_matches,
+        "has_more": total_matches > MAX_SEARCH_RESULTS,
+    }
+
 
 @app.get("/")
 def root():
@@ -86,6 +165,12 @@ def root():
 @app.get("/activities")
 def get_activities():
     return activities
+
+
+@app.get("/students/search")
+def search_students(q: str = ""):
+    """Search students by student ID or name."""
+    return find_students(q)
 
 
 @app.post("/activities/{activity_name}/signup")
